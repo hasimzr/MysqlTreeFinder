@@ -1,0 +1,731 @@
+<!DOCTYPE html>
+<html lang="tr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>MySQL Tree Schema Finder - Veritabanı Şema Kaşifi</title>
+  <meta name="description" content="MySQL veritabanınıza bağlanarak tüm şema, tablo ve sütun hiyerarşisini görsel ve interaktif ağaç yapısıyla inceleyin.">
+  <!-- Google Fonts: Inter & JetBrains Mono -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+  <script src="/vendor/lucide/lucide.min.js"></script>
+</head>
+<body>
+  <div id="app" class="app-container">
+    
+    <!-- Top Navigation Bar -->
+    <header class="top-nav">
+      <div class="brand" id="brand-logo-btn" title="Ana Sayfaya Dön" style="cursor: pointer;">
+        <div class="brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+            <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+            <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+          </svg>
+        </div>
+        <div class="brand-text">
+          <h1>MySQL Tree Finder</h1>
+          <span class="version-tag">v1.0.0</span>
+        </div>
+      </div>
+
+      <div class="nav-right-actions">
+        <!-- Header Hide Toggle Button -->
+        <button id="btn-toggle-header" class="icon-btn toggle-header-btn" title="Başlık Çubuğunu Gizle/Göster">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="17 11 12 6 7 11"></polyline>
+            <polyline points="17 18 12 13 7 18"></polyline>
+          </svg>
+        </button>
+
+        <button id="btn-workbench-home" class="btn btn-secondary btn-sm" title="Bağlantı Yöneticisine Dön">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path>
+            <polyline points="9 22 9 12 15 12 15 22"></polyline>
+          </svg>
+          Bağlantılar (Home)
+        </button>
+
+        <!-- Active Connection Info Bar (Shown when connected) -->
+        <div id="active-connection-bar" class="connection-bar hidden">
+          <div class="status-indicator online">
+            <span class="dot"></span>
+            <span id="connection-host-badge" class="host-badge">localhost:3306</span>
+          </div>
+
+          <div class="schema-selector-wrapper">
+            <label for="schema-select">Aktif Şema:</label>
+            <select id="schema-select" class="custom-select">
+              <option value="">Şema Seçiniz...</option>
+            </select>
+          </div>
+
+          <button id="btn-reconnect" class="btn btn-secondary btn-sm" title="Bağlantıyı Yenile / Değiştir">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M23 4v6h-6"></path>
+              <path d="M1 20v-6h6"></path>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            Bağlantıyı Değiştir
+          </button>
+        </div>
+      </div>
+    </header>
+
+    <!-- Workbench Connections Home (MySQL Workbench Style Landing) -->
+    <main id="workbench-home" class="workbench-container">
+      <div class="workbench-header">
+        <div class="workbench-title-group">
+          <h2>MySQL Sunucu Bağlantıları</h2>
+          <p>Kayıtlı veritabanı bağlantılarınızdan birini seçerek bağlanın veya yeni bir sunucu ekleyin.</p>
+        </div>
+        <div class="workbench-header-actions">
+          <div class="workbench-search-box">
+            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="conn-search-input" placeholder="Bağlantılarda ara..." autocomplete="off">
+          </div>
+          <button id="btn-add-new-conn" class="btn btn-primary">
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="12" y1="5" x2="12" y2="19"></line>
+              <line x1="5" y1="12" x2="19" y2="12"></line>
+            </svg>
+            Yeni Bağlantı Ekle
+          </button>
+        </div>
+      </div>
+
+      <!-- Saved Connections Grid -->
+      <div id="saved-connections-grid" class="connections-grid">
+        <!-- Dynamic Connection Cards rendered via JS -->
+      </div>
+    </main>
+
+    <!-- Floating Header Show Button (visible when header is hidden) -->
+    <button id="btn-show-header" class="floating-show-header-btn hidden" title="Başlık Çubuğunu Göster">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+        <polyline points="7 13 12 18 17 13"></polyline>
+        <polyline points="7 6 12 11 17 6"></polyline>
+      </svg>
+    </button>
+
+    <!-- Main Workspace (Explorer + Details) -->
+    <main id="main-workspace" class="workspace hidden">
+      <!-- Sidebar Toggle Button (floating, sticks to sidebar edge) -->
+      <button id="btn-toggle-sidebar" class="sidebar-toggle-btn" title="Sol Paneli Gizle/Göster">
+        <svg id="sidebar-toggle-icon" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+          <polyline points="15 18 9 12 15 6"></polyline>
+        </svg>
+      </button>
+
+      <!-- Left Sidebar: Tree View Explorer -->
+      <aside class="sidebar" id="sidebar-panel">
+        <div class="sidebar-header">
+          <div class="search-box">
+            <svg class="search-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="11" cy="11" r="8"></circle>
+              <line x1="21" y1="21" x2="16.65" y2="16.65"></line>
+            </svg>
+            <input type="text" id="tree-search-input" placeholder="Tablo veya Sütun Ara..." autocomplete="off">
+            <button id="btn-clear-search" class="clear-btn hidden">&times;</button>
+          </div>
+          <div class="tree-actions">
+            <button id="btn-expand-all" class="icon-btn" title="Tümünü Genişlet">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="7 13 12 18 17 13"></polyline>
+                <polyline points="7 6 12 11 17 6"></polyline>
+              </svg>
+            </button>
+            <button id="btn-collapse-all" class="icon-btn" title="Tümünü Daralt">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="17 11 12 6 7 11"></polyline>
+                <polyline points="17 18 12 13 7 18"></polyline>
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- SQL Console Nav Item -->
+        <div class="sidebar-sql-nav-wrapper">
+          <button id="btn-open-sql-console" class="sidebar-sql-nav-btn" title="SQL Konsolu Aç">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+            </svg>
+            SQL Konsol
+          </button>
+        </div>
+
+        <div class="tree-container">
+          <div id="tree-view" class="tree-root">
+            <!-- Dynamic Tree Nodes Rendered via JS -->
+          </div>
+        </div>
+
+        <div class="sidebar-footer">
+          <span id="stats-tables-count">0 Tablo</span>
+          <span id="stats-columns-count">0 Sütun</span>
+        </div>
+      </aside>
+
+      <!-- Right Main Panel -->
+      <section class="main-content">
+
+        <!-- SQL Console Full Panel -->
+        <div id="sql-console-main-panel" class="sql-console-main-panel hidden">
+          <div class="sql-main-panel-header">
+            <div class="sql-main-panel-title">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+              </svg>
+              <h2>SQL Konsol</h2>
+              <span class="sql-main-panel-badge">Tüm Veritabanlarına Erişim</span>
+            </div>
+          </div>
+          <div class="sql-console-container">
+            <div class="sql-console-toolbar">
+              <div class="toolbar-left">
+                <button id="btn-run-console-sql" class="btn btn-primary btn-sm btn-run-sql">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                  </svg>
+                  Çalıştır (Ctrl+Enter)
+                </button>
+                <button id="btn-clear-console-sql" class="btn btn-secondary btn-sm">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <path d="M3 6h18"></path>
+                    <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+                  </svg>
+                  Temizle
+                </button>
+                <select id="console-sql-templates" class="form-select form-select-sm sql-template-select">
+                  <option value="">-- Hızlı Sorgu Şablonları --</option>
+                  <option value="SELECT * FROM {table} LIMIT 50;">SELECT * FROM {table}</option>
+                  <option value="SELECT COUNT(*) FROM {table};">SELECT COUNT(*)</option>
+                  <option value="SELECT * FROM {table} ORDER BY id DESC LIMIT 50;">ORDER BY id DESC</option>
+                  <option value="SHOW TABLES;">SHOW TABLES</option>
+                  <option value="SHOW DATABASES;">SHOW DATABASES</option>
+                  <option value="SHOW PROCESSLIST;">SHOW PROCESSLIST</option>
+                </select>
+              </div>
+              <div class="toolbar-right">
+                <span class="console-hint">⚡ Yazmaya başlayın: <strong>Oto-Tamamlama</strong> (Yön Tuşları / Tab / Enter)</span>
+              </div>
+            </div>
+
+            <div class="sql-chips-bar">
+              <span class="chips-label">Hızlı Ekle:</span>
+              <button type="button" class="sql-chip" data-sql="SELECT * FROM {table} WHERE ">SELECT WHERE</button>
+              <button type="button" class="sql-chip" data-sql="SELECT COUNT(*) FROM {table};">COUNT(*)</button>
+              <button type="button" class="sql-chip" data-sql=" WHERE ">WHERE</button>
+              <button type="button" class="sql-chip" data-sql=" ORDER BY id DESC">ORDER BY</button>
+              <button type="button" class="sql-chip" data-sql=" GROUP BY ">GROUP BY</button>
+              <button type="button" class="sql-chip" data-sql=" INNER JOIN ">JOIN</button>
+              <button type="button" class="sql-chip" data-sql=" LIMIT 25">LIMIT</button>
+            </div>
+
+            <div class="sql-editor-box">
+              <textarea id="console-sql-input" class="sql-console-textarea" rows="6" spellcheck="false" placeholder="SQL sorgunuzu buraya yazın (Örn: wh -> WHERE, sel -> SELECT, tablo veya sütun adlarını otomatik tamamlayın)..."></textarea>
+            </div>
+
+            <div id="console-sql-status" class="sql-status-bar hidden"></div>
+
+            <div id="console-sql-results-container" class="table-wrapper sql-results-wrapper">
+              <div class="sql-empty-hint">Sorguyu çalıştırmak için yukarıdaki editöre SQL komutunu yazıp <strong>Çalıştır</strong> butonuna basın.</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Welcome / Empty State -->
+        <div id="welcome-empty-state" class="empty-state">
+          <div class="empty-icon">
+            <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path>
+              <polyline points="14 2 14 8 20 8"></polyline>
+              <line x1="16" y1="13" x2="8" y2="13"></line>
+              <line x1="16" y1="17" x2="8" y2="17"></line>
+              <polyline points="10 9 9 9 8 9"></polyline>
+            </svg>
+          </div>
+          <h2>Bir Tablo veya Şema Elemanı Seçin</h2>
+          <p>Sol paneldeki ağaç yapısından detaylarını ve sütun tiplerini görüntülemek istediğiniz bir tabloya tıklayın.</p>
+        </div>
+
+        <div id="detail-panel" class="detail-panel hidden">
+          <!-- Detail Header -->
+          <div class="detail-header">
+            <div class="detail-title-group">
+              <div class="title-with-badge">
+                <div class="nav-history-buttons">
+                  <button id="btn-nav-back" class="btn-nav-history" title="Önceki Tabloya Git (Alt + Left)" disabled>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="19" y1="12" x2="5" y2="12"></line>
+                      <polyline points="12 19 5 12 12 5"></polyline>
+                    </svg>
+                  </button>
+                  <button id="btn-nav-forward" class="btn-nav-history" title="Sonraki Tabloya Git (Alt + Right)" disabled>
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                      <line x1="5" y1="12" x2="19" y2="12"></line>
+                      <polyline points="12 5 19 12 12 19"></polyline>
+                    </svg>
+                  </button>
+                </div>
+                <span id="detail-item-type-badge" class="badge type-table">TABLE</span>
+                <h2 id="detail-item-title">users</h2>
+              </div>
+              <p id="detail-item-subtitle" class="subtitle">ecommerce_prod.users</p>
+            </div>
+
+            <div class="detail-meta-pills">
+              <div class="meta-pill">
+                <span class="label">Tahmini Satır:</span>
+                <span id="detail-meta-rows" class="value">14,250</span>
+              </div>
+              <div class="meta-pill">
+                <span class="label">Motor:</span>
+                <span id="detail-meta-engine" class="value">InnoDB</span>
+              </div>
+              <div class="meta-pill">
+                <span class="label">Sütun Sayısı:</span>
+                <span id="detail-meta-cols" class="value">7</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Detail Navigation Tabs -->
+          <div class="tabs-nav">
+            <button class="tab-btn active" data-tab="tab-columns">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <line x1="8" y1="6" x2="21" y2="6"></line>
+                <line x1="8" y1="12" x2="21" y2="12"></line>
+                <line x1="8" y1="18" x2="21" y2="18"></line>
+                <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                <line x1="3" y1="18" x2="3.01" y2="18"></line>
+              </svg>
+              Sütunlar & Tipler
+            </button>
+            <button class="tab-btn" data-tab="tab-sample">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="3" y1="9" x2="21" y2="9"></line>
+                <line x1="9" y1="21" x2="9" y2="9"></line>
+              </svg>
+              <span id="tab-sample-label">Veriler</span>
+            </button>
+            <button class="tab-btn" data-tab="tab-ddl">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polyline points="16 18 22 12 16 6"></polyline>
+                <polyline points="8 6 2 12 8 18"></polyline>
+              </svg>
+              SQL DDL (CREATE TABLE)
+            </button>
+            <button class="tab-btn" data-tab="tab-indexes">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 0 1 7.777-7.777zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4"></path>
+              </svg>
+              İndeksler & Anahtarlar
+            </button>
+            <button class="tab-btn" data-tab="tab-relations">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M17 3a28.5 28.5 0 0 1 4 14.01"></path>
+                <path d="M3 3a28.5 28.5 0 0 0 4 14.01"></path>
+                <line x1="12" y1="3" x2="12" y2="21"></line>
+                <circle cx="12" cy="12" r="3"></circle>
+              </svg>
+              İlişki Ağacı (Tree View)
+            </button>
+            <button class="tab-btn" data-tab="tab-genealogy">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <circle cx="12" cy="5" r="2.5"></circle>
+                <circle cx="5" cy="19" r="2.5"></circle>
+                <circle cx="19" cy="19" r="2.5"></circle>
+                <path d="M12 7.5v4.5M5 16.5V14a2 2 0 0 1 2-2h10a2 2 0 0 1 2 2v2.5M12 12h0"></path>
+              </svg>
+              Soy Ağacı
+            </button>
+
+            <button id="btn-fullscreen-tab" class="btn-fullscreen-tab" title="Tam Ekran Moduna Geç / Çık">
+              <svg class="icon-expand" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M8 3H5a2 2 0 0 0-2 2v3m18 0V5a2 2 0 0 0-2-2h-3m0 18h3a2 2 0 0 0 2-2v-3M3 16v3a2 2 0 0 0 2 2h3"></path>
+              </svg>
+              <svg class="icon-compress hidden" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M8 3v3a2 2 0 0 1-2 2H3m18 0h-3a2 2 0 0 1-2-2V3m0 18v-3a2 2 0 0 1 2-2h3M3 16h3a2 2 0 0 1 2 2v3"></path>
+              </svg>
+              <span class="fullscreen-text">Tam Ekran</span>
+            </button>
+          </div>
+
+          <!-- Tab Content Sections -->
+          <div class="tab-contents">
+            <!-- Columns Tab -->
+            <div id="tab-columns" class="tab-pane active">
+              <div class="table-wrapper">
+                <table class="data-table">
+                  <thead>
+                    <tr>
+                      <th style="width: 85px;">Anahtar</th>
+                      <th style="width: 170px;">Sütun Adı</th>
+                      <th style="width: 140px;">Veri Tipi</th>
+                      <th style="width: 130px;">Boş Olabilir (Null)</th>
+                      <th style="width: 130px;">Varsayılan</th>
+                      <th style="width: 100px;">Ekstra</th>
+                      <th style="width: 200px;">İlişki / Foreign Key</th>
+                    </tr>
+                  </thead>
+                  <tbody id="columns-table-body">
+                    <!-- Dynamic column rows -->
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Relations Tab (Tree View Layout) -->
+            <div id="tab-relations" class="tab-pane">
+              <div class="relation-tree-header">
+                <div class="relation-tree-title">
+                  <span class="icon"><i data-lucide="network" width="18" height="18"></i></span>
+                  <span>Tablo Bağımlılık Hiyerarşisi Ağacı</span>
+                </div>
+                <div class="tree-controls">
+                  <button id="btn-rel-toggle-view" class="btn btn-demo btn-sm" title="Kart veya Sade Metin Görünümünü Değiştir">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <line x1="8" y1="6" x2="21" y2="6"></line>
+                      <line x1="8" y1="12" x2="21" y2="12"></line>
+                      <line x1="8" y1="18" x2="21" y2="18"></line>
+                      <line x1="3" y1="6" x2="3.01" y2="6"></line>
+                      <line x1="3" y1="12" x2="3.01" y2="12"></line>
+                      <line x1="3" y1="18" x2="3.01" y2="18"></line>
+                    </svg>
+                    <span id="btn-rel-toggle-text"><i data-lucide="file-text" width="14" height="14"></i> Sade Metin Hiyerarşisi</span>
+                  </button>
+                  <button id="btn-rel-expand-all" class="btn btn-secondary btn-sm">Tümünü Genişlet</button>
+                  <button id="btn-rel-collapse-all" class="btn btn-secondary btn-sm">Tümünü Daralt</button>
+                </div>
+              </div>
+              <div id="relations-container" class="rel-tree-root">
+                <!-- Dynamic Tree View rendered here -->
+              </div>
+              <div id="relations-text-container" class="rel-text-root hidden">
+                <!-- Dynamic Text Outline rendered here -->
+              </div>
+            </div>
+
+            <!-- Genealogy Tab (Soy Ağacı Layout) -->
+            <div id="tab-genealogy" class="tab-pane">
+              <div class="genealogy-wrapper">
+                <!-- Content dynamically rendered by GenealogyView.js -->
+              </div>
+            </div>
+
+            <!-- Sample / Table Data Tab -->
+            <div id="tab-sample" class="tab-pane">
+              <div class="table-data-header">
+                <div class="table-data-info">
+                  <i data-lucide="database" width="14" height="14"></i>
+                  <span id="table-record-info">Veriler yükleniyor...</span>
+                </div>
+                <div class="table-data-toolbar">
+                  <button id="btn-toggle-inline-sql" class="btn-toggle-sql" title="SQL Sorgusu Düzenle">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                      <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                    </svg>
+                    <span>⚡ SQL Sorgusu</span>
+                  </button>
+                  <label for="page-size-select" class="page-size-label">Sayfa Başına:</label>
+                  <select id="page-size-select" class="page-size-select">
+                    <option value="10">10</option>
+                    <option value="25" selected>25</option>
+                    <option value="50">50</option>
+                    <option value="100">100</option>
+                    <option value="250">250</option>
+                  </select>
+                </div>
+              </div>
+
+              <!-- Collapsible Inline SQL Editor Bar -->
+              <div id="inline-sql-editor-container" class="inline-sql-container hidden">
+                <div class="sql-editor-wrapper">
+                  <textarea id="inline-sql-input" class="sql-textarea" rows="2" placeholder="SELECT * FROM table WHERE ..."></textarea>
+                  <div class="sql-editor-actions">
+                    <button id="btn-run-inline-sql" class="btn btn-primary btn-sm btn-run-sql">
+                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"></polygon>
+                      </svg>
+                      Çalıştır (Ctrl+Enter)
+                    </button>
+                    <button id="btn-reset-inline-sql" class="btn btn-secondary btn-sm" title="Varsayılan Sorguya Sıfırla">Sıfırla</button>
+                  </div>
+                </div>
+              </div>
+
+              <div id="sample-data-container" class="table-wrapper">
+                <div class="loading-state">Veriler yükleniyor...</div>
+              </div>
+
+              <div id="table-pagination-container" class="table-pagination"></div>
+            </div>
+
+            <!-- DDL Tab -->
+            <div id="tab-ddl" class="tab-pane">
+              <div class="code-block-wrapper">
+                <button id="btn-copy-ddl" class="btn btn-secondary btn-sm copy-btn">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect>
+                    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path>
+                  </svg>
+                  SQL Kopyala
+                </button>
+                <pre><code id="ddl-code-block" class="language-sql">CREATE TABLE users ...</code></pre>
+              </div>
+            </div>
+
+            <!-- Indexes Tab -->
+            <div id="tab-indexes" class="tab-pane">
+              <div id="indexes-container" class="indexes-grid">
+                <!-- Index cards rendered here -->
+              </div>
+            </div>
+
+          </div>
+        </div>
+      </section>
+
+    </main>
+
+    <!-- Connection Modal Screen (Shown on Launch or Reconnect) -->
+    <div id="connection-modal" class="modal-overlay hidden">
+      <div class="modal-card">
+        <button type="button" id="btn-modal-close" class="modal-close-btn" title="Pencereyi Kapat">&times;</button>
+        <div class="modal-header">
+          <div class="modal-icon">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <ellipse cx="12" cy="5" rx="9" ry="3"></ellipse>
+              <path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3"></path>
+              <path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"></path>
+            </svg>
+          </div>
+          <h2 id="modal-heading">MySQL Veritabanı Bağlantısı</h2>
+          <p id="modal-subheading">Şema ağacını listelemek için MySQL sunucu bilgilerinizi giriniz.</p>
+        </div>
+
+        <form id="connection-form" class="connection-form">
+          <input type="hidden" id="editing-conn-id" value="">
+          
+          <div class="form-group">
+            <label for="db-title">Bağlantı Adı / Etiketi (Opsiyonel)</label>
+            <input type="text" id="db-title" placeholder="Örn: Yerel Canlı Sunucu (Boş bırakılırsa otomatik oluşturulur)">
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-3">
+              <label for="db-host">Sunucu Adresi (Host)</label>
+              <input type="text" id="db-host" placeholder="localhost veya 127.0.0.1" value="localhost" required>
+            </div>
+            <div class="form-group flex-1">
+              <label for="db-port">Port</label>
+              <input type="number" id="db-port" placeholder="3306" value="3306" required>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group flex-1">
+              <label for="db-user">Kullanıcı Adı</label>
+              <input type="text" id="db-user" placeholder="root" value="root" required>
+            </div>
+            <div class="form-group flex-1">
+              <label for="db-password">Şifre</label>
+              <input type="password" id="db-password" placeholder="••••••••">
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label for="db-name">Varsayılan Veritabanı / Şema (Opsiyonel)</label>
+            <input type="text" id="db-name" placeholder="Örn: my_database (Boş bırakılırsa tüm şemalar listelenir)">
+          </div>
+
+          <div class="form-checkbox-group">
+            <div class="form-checkbox">
+              <input type="checkbox" id="db-save" checked>
+              <label for="db-save">Bu bağlantıyı kaydet</label>
+            </div>
+            <div class="form-checkbox">
+              <input type="checkbox" id="db-ask-password">
+              <label for="db-ask-password" title="Canlı sunucular için şifre kaydetmeyip bağlanırken sor">Her bağlantıda şifre sor (Şifreyi Kaydetme)</label>
+            </div>
+            <div class="form-checkbox">
+              <input type="checkbox" id="db-ssl">
+              <label for="db-ssl">SSL / TLS Güvenli Bağlantı</label>
+            </div>
+          </div>
+
+          <div id="connection-error" class="alert alert-error hidden">
+            <!-- Connection error message -->
+          </div>
+
+          <div class="modal-actions">
+            <button type="button" id="btn-modal-cancel" class="btn btn-secondary">İptal</button>
+            <button type="button" id="btn-demo-mode" class="btn btn-demo">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <polygon points="5 3 19 12 5 21 5 3"></polygon>
+              </svg>
+              Demo Modu
+            </button>
+            <button type="submit" id="btn-connect" class="btn btn-primary">
+              <span class="btn-text">Veritabanına Bağlan</span>
+              <div class="btn-spinner hidden"></div>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Password Prompt Modal (For connections configured with askPassword) -->
+    <div id="password-prompt-modal" class="modal-overlay hidden">
+      <div class="modal-card modal-card-sm">
+        <button type="button" id="btn-prompt-close" class="modal-close-btn" title="Pencereyi Kapat">&times;</button>
+        <div class="modal-header">
+          <div class="modal-icon warning">
+            <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+              <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+            </svg>
+          </div>
+          <h2 id="prompt-heading">Şifre Gerekli</h2>
+          <p id="prompt-subheading"><strong id="prompt-conn-title">Localhost MySQL</strong> veritabanına bağlanmak için lütfen şifrenizi giriniz.</p>
+        </div>
+
+        <form id="password-prompt-form" class="connection-form">
+          <div class="form-group">
+            <label for="prompt-password-input">Veritabanı Şifresi</label>
+            <input type="password" id="prompt-password-input" placeholder="••••••••" required>
+          </div>
+
+          <div id="prompt-error" class="alert alert-error hidden"></div>
+
+          <div class="modal-actions">
+            <button type="button" id="btn-prompt-cancel" class="btn btn-secondary">İptal</button>
+            <button type="submit" id="btn-prompt-submit" class="btn btn-primary">
+              <span class="btn-text">Doğrula ve Bağlan</span>
+              <div class="btn-spinner hidden"></div>
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <!-- Notification Toast -->
+    <div id="toast" class="toast hidden">
+      <span id="toast-message">İşlem başarılı</span>
+    </div>
+
+  </div>
+
+  <script type="module" src="js/app.js"></script>
+
+  <!-- UI Panel Toggle Logic -->
+  <script>
+    (function() {
+      const workspace      = document.getElementById('main-workspace');
+      const sidebar        = document.getElementById('sidebar-panel');
+      const topNav         = document.querySelector('.top-nav');
+      const toggleSidebar  = document.getElementById('btn-toggle-sidebar');
+      const toggleHeader   = document.getElementById('btn-toggle-header');
+      const showHeaderBtn  = document.getElementById('btn-show-header');
+      const sidebarIcon    = document.getElementById('sidebar-toggle-icon');
+
+      // Restore persisted states
+      let sidebarHidden = localStorage.getItem('ui_sidebar_hidden') === 'true';
+      let headerHidden  = localStorage.getItem('ui_header_hidden') === 'true';
+
+      function applySidebarState(animate) {
+        if (sidebarHidden) {
+          sidebar.classList.add('sidebar-collapsed');
+          workspace.classList.add('sidebar-is-collapsed');
+          sidebarIcon.setAttribute('points', '9 18 15 12 9 6');  // chevron-right
+        } else {
+          sidebar.classList.remove('sidebar-collapsed');
+          workspace.classList.remove('sidebar-is-collapsed');
+          sidebarIcon.setAttribute('points', '15 18 9 12 15 6'); // chevron-left
+        }
+      }
+
+      function applyHeaderState() {
+        if (headerHidden) {
+          topNav.classList.add('top-nav-hidden');
+          showHeaderBtn.classList.remove('hidden');
+        } else {
+          topNav.classList.remove('top-nav-hidden');
+          showHeaderBtn.classList.add('hidden');
+        }
+      }
+
+      // Apply on load (no animation flash)
+      applySidebarState(false);
+      applyHeaderState();
+
+      // Sidebar toggle
+      toggleSidebar && toggleSidebar.addEventListener('click', function() {
+        sidebarHidden = !sidebarHidden;
+        localStorage.setItem('ui_sidebar_hidden', sidebarHidden);
+        applySidebarState(true);
+      });
+
+      // Header hide button (inside nav)
+      toggleHeader && toggleHeader.addEventListener('click', function() {
+        headerHidden = true;
+        localStorage.setItem('ui_header_hidden', headerHidden);
+        applyHeaderState();
+      });
+
+      // Floating "show header" button
+      showHeaderBtn && showHeaderBtn.addEventListener('click', function() {
+        headerHidden = false;
+        localStorage.setItem('ui_header_hidden', headerHidden);
+        applyHeaderState();
+      });
+
+      // SQL Console Nav Button — opens SQL console in right panel
+      const btnOpenSql        = document.getElementById('btn-open-sql-console');
+      const sqlMainPanel      = document.getElementById('sql-console-main-panel');
+      const welcomeState      = document.getElementById('welcome-empty-state');
+      const detailPanel       = document.getElementById('detail-panel');
+
+      function showSqlConsolePanel() {
+        if (!sqlMainPanel) return;
+        if (welcomeState) welcomeState.classList.add('hidden');
+        if (detailPanel) detailPanel.classList.add('hidden');
+        sqlMainPanel.classList.remove('hidden');
+        if (btnOpenSql) btnOpenSql.classList.add('active');
+      }
+
+      function hideSqlConsolePanel() {
+        if (!sqlMainPanel) return;
+        sqlMainPanel.classList.add('hidden');
+        if (btnOpenSql) btnOpenSql.classList.remove('active');
+      }
+
+      btnOpenSql && btnOpenSql.addEventListener('click', function() {
+        const isOpen = !sqlMainPanel.classList.contains('hidden');
+        if (isOpen) {
+          hideSqlConsolePanel();
+          // Show welcome state back if no table is selected
+          if (detailPanel && detailPanel.classList.contains('hidden')) {
+            if (welcomeState) welcomeState.classList.remove('hidden');
+          }
+        } else {
+          showSqlConsolePanel();
+        }
+      });
+
+      // Hide SQL console when a tree item is clicked (it will open detail panel)
+      document.addEventListener('table-selected', function() {
+        hideSqlConsolePanel();
+      });
+    })();
+  </script>
+</body>
+</html>

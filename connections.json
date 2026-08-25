@@ -1,0 +1,15 @@
+[
+  {
+    "id": "conn-1787654349399",
+    "title": "root@localhost",
+    "host": "localhost",
+    "port": 3306,
+    "user": "root",
+    "password": "enc:v1:0866d1d0fadbe98a6c3b39a7:270cf31d231bc1c65c45915cf19f1b61:160f25db46",
+    "database": "",
+    "ssl": false,
+    "isMock": false,
+    "askPassword": false,
+    "lastUsed": 1787666422701
+  }
+]
